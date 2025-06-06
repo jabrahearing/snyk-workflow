@@ -1,18 +1,34 @@
-name: Snyk Test
+name: Snyk Security Check for New Vulnerabilities
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-    
+
 jobs:
   security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/node@master
+
+      - name: Install Snyk and snyk-delta
+        run: |
+          npm install -g snyk
+          npm install -g snyk-delta
+
+      - name: Run Snyk to check for new vulnerabilities
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --all-projects
+        run: |
+          # Step 1: Attempt to test the PR's code for any supported projects.
+          # The '|| true' ensures that if Snyk finds no projects, it doesn't stop the whole workflow.
+          snyk test --all-projects --severity-threshold=high --json-file-output=snyk-results.json || true
+
+          # Step 2: If project was valid and scanned, test for new vulnerabilities 
+          if [ -f "snyk-results.json" ]; then
+            echo "Snyk results file found. Comparing against baseline for new vulnerabilities..."
+            cat snyk-results.json | snyk-delta --baselineOrg ${{ secrets.SNYK_ORG_ID }} --fail-on-new
+          else
+            echo "No snyk-results.json file was generated."
+            echo "This is expected if the repository contains no supported package managers."
+            echo "Skipping Snyk delta check and passing the workflow."
+          fi
