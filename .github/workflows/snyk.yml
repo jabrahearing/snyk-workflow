@@ -1,18 +1,29 @@
-name: Snyk Test
+name: Snyk Security Check
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-    
+
 jobs:
   security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/node@master
+
+      - name: Install Snyk and snyk-delta
+        run: |
+          npm install -g snyk
+          npm install -g snyk-delta
+
+      - name: Run Snyk to check for new vulnerabilities
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=critical --all-projects --fail-on=new
+        run: |
+          # Step 1: Snapshot project dependencies
+          snyk monitor --all-projects --org=${{ secrets.SNYK_ORG_NAME }}
+
+          # Step 2: Test PR code
+          snyk test --all-projects --severity-threshold=high --json-file-output=snyk-results.json || true
+
+          # Step 3: Check for vulnerabilities in delta 
+          cat snyk-results.json | snyk-delta --baselineOrg ${{ secrets.SNYK_ORG_ID }} --fail-on-new
