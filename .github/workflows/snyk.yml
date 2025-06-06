@@ -1,4 +1,4 @@
-name: Snyk Security Check
+name: Snyk Security Check for New Vulnerabilities
 
 on:
   pull_request:
@@ -19,11 +19,8 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          # Step 1: Snapshot project dependencies
-          snyk monitor --all-projects --org=${{ secrets.SNYK_ORG_NAME }}
-
-          # Step 2: Test PR code
+          # Step 1: Test PR code
           snyk test --all-projects --severity-threshold=high --json-file-output=snyk-results.json || true
 
-          # Step 3: Check for vulnerabilities in delta 
+          # Step 2: Check for vulnerabilities in delta 
           cat snyk-results.json | snyk-delta --baselineOrg ${{ secrets.SNYK_ORG_ID }} --fail-on-new
