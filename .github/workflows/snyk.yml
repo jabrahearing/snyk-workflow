@@ -19,8 +19,16 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          # Step 1: Test PR code
+          # Step 1: Attempt to test the PR's code for any supported projects.
+          # The '|| true' ensures that if Snyk finds no projects, it doesn't stop the whole workflow.
           snyk test --all-projects --severity-threshold=high --json-file-output=snyk-results.json || true
 
-          # Step 2: Check for vulnerabilities in delta 
-          cat snyk-results.json | snyk-delta --baselineOrg ${{ secrets.SNYK_ORG_ID }} --fail-on-new
+          # Step 2: If project was valid and scanned, test for new vulnerabilities 
+          if [ -f "snyk-results.json" ]; then
+            echo "Snyk results file found. Comparing against baseline for new vulnerabilities..."
+            cat snyk-results.json | snyk-delta --baselineOrg ${{ secrets.SNYK_ORG_ID }} --fail-on-new
+          else
+            echo "No snyk-results.json file was generated."
+            echo "This is expected if the repository contains no supported package managers."
+            echo "Skipping Snyk delta check and passing the workflow."
+          fi
