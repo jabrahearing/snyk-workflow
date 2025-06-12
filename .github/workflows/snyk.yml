@@ -21,7 +21,7 @@ jobs:
         run: |
           # Step 1: Attempt to test the PR's code for any supported projects.
           # The '|| true' ensures that if Snyk finds no projects, it doesn't stop the whole workflow.
-          snyk test --all-projects --severity-threshold=high --json-file-output=snyk-results.json || true
+          snyk test --all-projects --severity-threshold=high --json-file-output=snyk-results.json --exclude=test,storybook || true
 
           # Step 2: If project was valid and scanned, test for new vulnerabilities 
           if [ -f "snyk-results.json" ]; then
